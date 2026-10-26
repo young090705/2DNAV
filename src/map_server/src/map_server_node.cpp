@@ -19,11 +19,13 @@ namespace map_server
 MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
 : Node("map_server", options)
 {
+  //读取yaml参数
   const auto pcd_file = declare_parameter<std::string>("pcd_file", "");
   const auto frame_id = declare_parameter<std::string>("frame_id", "map");
   const auto topic_name = declare_parameter<std::string>("topic_name", "/map_server/map_cloud");
   const auto publish_rate = declare_parameter<double>("publish_rate", 1.0);
 
+  //安全检查
   if (pcd_file.empty()) {
     throw std::invalid_argument("pcd_file must specify a PCD map file");
   }
@@ -33,6 +35,7 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
   if (!std::isfinite(publish_rate) || publish_rate < 0.0) {
     throw std::invalid_argument("publish_rate must be finite and >= 0 (0 publishes once)");
   }
+
   std::chrono::nanoseconds period{0};
   if (publish_rate > 0.0) {
     const long double period_ns = 1.0e9L / publish_rate;
@@ -58,6 +61,8 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
   if (cloud.width == 0 || cloud.height == 0 || cloud.data.empty()) {
     throw std::runtime_error("PCD map contains no points: " + path.string());
   }
+
+  //检查点云是否有xyz三个字段的坐标
   for (const std::string axis : {"x", "y", "z"}) {
     bool found = false;
     for (const auto & field : cloud.fields) {
@@ -67,19 +72,17 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
       throw std::runtime_error("PCD map is missing coordinate field: " + axis);
     }
   }
-  pcl_conversions::moveFromPCL(cloud, map_);
+  pcl_conversions::moveFromPCL(cloud, map_); //将PCL点云格式转化为ROS2点云消息
   map_.header.frame_id = frame_id;
   map_publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-    topic_name, rclcpp::QoS(1).reliable().transient_local());
+    topic_name, rclcpp::QoS(1).reliable());
 
   publish_map();
   if (publish_rate > 0.0) {
     publish_timer_ = create_wall_timer(period, [this]() { publish_map(); });
   }
-  RCLCPP_INFO(
-    get_logger(), "Loaded %u x %u points from %s; topic=%s, frame=%s",
-    map_.width, map_.height, path.string().c_str(),
-    map_publisher_->get_topic_name(), frame_id.c_str());
+
+  RCLCPP_INFO(get_logger(), "MapServerNode Start!");
 }
 
 void MapServerNode::publish_map()

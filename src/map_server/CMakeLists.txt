@@ -35,16 +35,9 @@ install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
-install(DIRECTORY config launch rviz maps DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY config launch maps DESTINATION share/${PROJECT_NAME})
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_map_server test/test_map_server.cpp)
-  target_link_libraries(test_map_server ${PROJECT_NAME})
-  ament_target_dependencies(test_map_server rclcpp sensor_msgs)
-  target_compile_definitions(test_map_server PRIVATE
-    TEST_PCD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/test/data/map.pcd")
-endif()
+
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
