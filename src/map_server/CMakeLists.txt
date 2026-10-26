@@ -1,0 +1,52 @@
+cmake_minimum_required(VERSION 3.16)
+project(map_server)
+
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(PCL REQUIRED COMPONENTS io)
+
+add_library(${PROJECT_NAME} SHARED src/map_server_node.cpp)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${PCL_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES})
+ament_target_dependencies(${PROJECT_NAME}
+  ament_index_cpp rclcpp rclcpp_components sensor_msgs pcl_conversions)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+
+# Register the shared library only; the ROS component container supplies main().
+rclcpp_components_register_nodes(${PROJECT_NAME} "map_server::MapServerNode")
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY config launch rviz maps DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_map_server test/test_map_server.cpp)
+  target_link_libraries(test_map_server ${PROJECT_NAME})
+  ament_target_dependencies(test_map_server rclcpp sensor_msgs)
+  target_compile_definitions(test_map_server PRIVATE
+    TEST_PCD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/test/data/map.pcd")
+endif()
+
+ament_export_include_directories(include)
+ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(rclcpp sensor_msgs)
+ament_package()
