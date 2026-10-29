@@ -2,6 +2,8 @@
   ros__parameters:
     # Absolute path, or filename relative to this package's installed maps/ directory.
     pcd_file: "RMUC202608af.pcd"
+    map_yaml: "RMUC2026.yaml"
+    map_topic: "/map"
     frame_id: "map"
     topic_name: "/map_server/map_cloud"
     # Hz; 0 publishes once and retains the map for late transient-local subscribers.
