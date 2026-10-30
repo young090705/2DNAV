@@ -21,8 +21,8 @@ Visualization Manager:
       Use Timestamp: false
       Value: true
     - Class: rviz_default_plugins/PointCloud2
-      Name: Optional PCD
-      Enabled: false
+      Name: PCD Alignment Reference
+      Enabled: true
       Color Transformer: FlatColor
       Color: 80; 180; 255
       Position Transformer: XYZ
@@ -34,7 +34,7 @@ Visualization Manager:
         Durability Policy: Transient Local
         Reliability Policy: Reliable
         History Policy: Keep Last
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
