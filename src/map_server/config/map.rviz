@@ -21,7 +21,7 @@ Visualization Manager:
       Use Timestamp: false
       Value: true
     - Class: rviz_default_plugins/PointCloud2
-      Name: PCD Alignment Reference
+      Name: PCD
       Enabled: true
       Color Transformer: FlatColor
       Color: 80; 180; 255

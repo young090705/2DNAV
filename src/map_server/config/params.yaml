@@ -8,8 +8,6 @@
     pcd_offset_y: 7.45
     map_yaml: "RMUC2026.yaml"
     map_topic: "/map"
-    # Optional live alignment parameters: map_origin_x, map_origin_y, map_origin_yaw.
-    # If omitted, initial values come from the map YAML (meters, meters, radians).
     frame_id: "map"
     topic_name: "/map_server/map_cloud"
     # Hz; 0 publishes once and retains the map for late transient-local subscribers.

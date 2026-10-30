@@ -2,6 +2,7 @@
 #include "map_server/occupancy_map.hpp"
 
 #include <chrono>
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -12,6 +13,7 @@
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include "rclcpp_components/register_node_macro.hpp"
 
 namespace map_server
@@ -20,8 +22,12 @@ namespace map_server
 MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
 : Node("map_server", options)
 {
-  //读取yaml参数
   const auto pcd_file = declare_parameter<std::string>("pcd_file", "");
+  rcl_interfaces::msg::ParameterDescriptor frame_descriptor;
+  frame_descriptor.read_only = true;
+  frame_descriptor.description = "PCD child frame; applied at startup";
+  const auto pcd_frame_id = declare_parameter<std::string>(
+    "pcd_frame_id", "pcd_map", frame_descriptor);
   const auto map_yaml = declare_parameter<std::string>("map_yaml", "");
   const auto map_topic = declare_parameter<std::string>("map_topic", "/map");
   const auto frame_id = declare_parameter<std::string>("frame_id", "map");
@@ -42,6 +48,11 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
     get_node_topics_interface()->resolve_topic_name(map_topic))
   {
     throw std::invalid_argument("PCD and occupancy map topics must be distinct");
+  }
+  if (!pcd_file.empty() && (pcd_frame_id.empty() || pcd_frame_id == frame_id ||
+    pcd_frame_id.front() == '/' || frame_id.front() == '/'))
+  {
+    throw std::invalid_argument("PCD and parent frames must be distinct, without leading slashes");
   }
   if (!std::isfinite(publish_rate) || publish_rate < 0.0) {
     throw std::invalid_argument("publish_rate must be finite and >= 0 (0 publishes once)");
@@ -85,9 +96,45 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
       }
     }
     pcl_conversions::moveFromPCL(cloud, map_); //将PCL点云格式转化为ROS2点云消息
-    map_.header.frame_id = frame_id;
+    map_.header.frame_id = pcd_frame_id;
+    pcd_transform_.header.frame_id = frame_id;
+    pcd_transform_.child_frame_id = pcd_frame_id;
+    pcd_transform_.transform.rotation.w = 1.0;
+    rcl_interfaces::msg::ParameterDescriptor offset_descriptor;
+    offset_descriptor.description = "PCD translation along parent map X in meters (live)";
+    declare_parameter<double>("pcd_offset_x", 0.0, offset_descriptor);
+    offset_descriptor.description = "PCD translation along parent map Y in meters (live)";
+    declare_parameter<double>("pcd_offset_y", 0.0, offset_descriptor);
+    update_pcd_offset();
+    pcd_transform_broadcaster_ = std::make_unique<tf2_ros::StaticTransformBroadcaster>(this);
     map_publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>(
       topic_name, rclcpp::QoS(1).reliable().transient_local());
+    const auto is_offset_parameter = [](const rclcpp::Parameter & parameter) {
+        return parameter.get_name() == "pcd_offset_x" || parameter.get_name() == "pcd_offset_y";
+      };
+    parameter_validation_ = add_on_set_parameters_callback(
+      [is_offset_parameter](const std::vector<rclcpp::Parameter> & parameters) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        for (const auto & parameter : parameters) {
+          if (is_offset_parameter(parameter) &&
+            (parameter.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE ||
+            !std::isfinite(parameter.as_double())))
+          {
+            result.successful = false;
+            result.reason = parameter.get_name() + " must be a finite double";
+            break;
+          }
+        }
+        return result;
+      });
+    parameter_update_ = add_post_set_parameters_callback(
+      [this, is_offset_parameter](const std::vector<rclcpp::Parameter> & parameters) {
+        if (std::any_of(parameters.begin(), parameters.end(), is_offset_parameter)) {
+          update_pcd_offset();
+          publish_map();
+        }
+      });
   }
 
   if (!map_yaml.empty()) {
@@ -101,7 +148,6 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
     occupancy_map_.info.map_load_time = now();
     occupancy_publisher_ = create_publisher<nav_msgs::msg::OccupancyGrid>(
       map_topic, rclcpp::QoS(1).reliable().transient_local());
-    RCLCPP_INFO(get_logger(), "map_server_node start!");
   }
 
   publish_map();
@@ -114,8 +160,11 @@ MapServerNode::MapServerNode(const rclcpp::NodeOptions & options)
 
 void MapServerNode::publish_map()
 {
+  std::lock_guard<std::mutex> lock(map_mutex_);
   const auto stamp = now();
   if (map_publisher_) {
+    pcd_transform_.header.stamp = stamp;
+    pcd_transform_broadcaster_->sendTransform(pcd_transform_);
     map_.header.stamp = stamp;
     map_publisher_->publish(map_);
   }
@@ -124,6 +173,19 @@ void MapServerNode::publish_map()
     occupancy_publisher_->publish(occupancy_map_);
   }
 }
+
+void MapServerNode::update_pcd_offset()
+{
+  const auto x = get_parameter("pcd_offset_x").as_double();
+  const auto y = get_parameter("pcd_offset_y").as_double();
+  if (!std::isfinite(x) || !std::isfinite(y)) {
+    throw std::invalid_argument("PCD offsets must be finite");
+  }
+  std::lock_guard<std::mutex> lock(map_mutex_);
+  pcd_transform_.transform.translation.x = x;
+  pcd_transform_.transform.translation.y = y;
+}
+
 
 }  // namespace map_server
 

@@ -13,7 +13,7 @@ def generate_launch_description():
     share = Path(get_package_share_directory('map_server'))
     config_file = share / 'config' / 'params.yaml'
     return LaunchDescription([
-        DeclareLaunchArgument('use_rviz', default_value='true',
+        DeclareLaunchArgument('use_rviz', default_value='false',
                               description='Open RViz2 with the PGM map display'),
         ComposableNodeContainer(
             name='map_server_container',
