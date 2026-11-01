@@ -16,8 +16,9 @@ enum LID_TYPE
   AVIA = 1,
   VELO16,
   OUST64,
-  MID360
-};  //{1, 2, 3}
+  MID360,
+  SIMULATION = 5  // Instantaneous XYZI cloud; header stamp is the acquisition time.
+};
 enum TIME_UNIT
 {
   SEC = 0,

@@ -1,0 +1,15 @@
+map_server:
+  ros__parameters:
+    use_sim_time: false
+    # Filenames resolve relative to map_server's installed maps/ directory.
+    pcd_file: "RMUC2026_duo.pcd"
+    pcd_frame_id: "pcd_map"
+    # Live translation of pcd_map in map coordinates, in meters.
+    pcd_offset_x: 14.6
+    pcd_offset_y: 7.45
+    map_yaml: "RMUC2026.yaml"
+    map_topic: "/map"
+    frame_id: "map"
+    topic_name: "/map_server/map_cloud"
+    # Hz; 0 publishes once with transient-local durability.
+    publish_rate: 1.0

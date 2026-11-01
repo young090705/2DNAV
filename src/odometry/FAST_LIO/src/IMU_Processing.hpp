@@ -49,6 +49,9 @@ class ImuProcess
   Eigen::Matrix<double, 12, 12> Q;
   void Process(const MeasureGroup &meas,  esekfom::esekf<state_ikfom, 12, input_ikfom> &kf_state, PointCloudXYZI::Ptr pcl_un_);
 
+  // RGL/Gazebo publishes all rays at one pose: integrate IMU, skip point deskew.
+  bool instantaneous_scan = false;
+
   ofstream fout_imu;
   V3D cov_acc;
   V3D cov_gyr;
@@ -207,6 +210,7 @@ void ImuProcess::IMU_init(const MeasureGroup &meas, esekfom::esekf<state_ikfom, 
   init_P(21,21) = init_P(22,22) = 0.00001; 
   kf_state.change_P(init_P);
   last_imu_ = meas.imu.back();
+  if (instantaneous_scan) last_lidar_end_time_ = meas.lidar_end_time;
 
 }
 
@@ -297,6 +301,8 @@ void ImuProcess::UndistortPcl(const MeasureGroup &meas, esekfom::esekf<state_ikf
   imu_state = kf_state.get_x();
   last_imu_ = meas.imu.back();
   last_lidar_end_time_ = pcl_end_time;
+
+  if (instantaneous_scan) return;
 
   /*** undistort each lidar point (backward propagation) ***/
   if (pcl_out.points.begin() == pcl_out.points.end()) return;

@@ -85,6 +85,10 @@ void Preprocess::process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, Po
       mid360_handler(msg);
       break;
 
+    case SIMULATION:
+      default_handler(msg);
+      break;
+
     default:
       default_handler(msg);
       break;

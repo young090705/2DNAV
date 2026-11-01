@@ -1,0 +1,14 @@
+livox_lidar_publisher:
+  ros__parameters:
+    use_sim_time: false
+    # FAST-LIO's Livox input expects CustomMsg, so keep xfer_format at 1.
+    xfer_format: 1
+    multi_topic: 0
+    data_src: 0
+    publish_freq: 10.0
+    output_data_type: 0
+    frame_id: "livox_frame"
+    lvx_file_path: ""
+    cmdline_input_bd_code: "livox0000000001"
+    # Resolved by ParameterFile(allow_substs=True); edit this for another device config.
+    user_config_path: "$(find-pkg-share full_launcher)/config/MID360_config.json"
